@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { NavBar } from "@/components/NavBar";
 import { AdBanner } from "@/components/AdPlaceholder";
 
 const ALL_REGIONS = [
@@ -47,18 +48,7 @@ export default function HomeClient() {
 
   return (
     <main className="min-h-screen bg-white">
-      {/* 네비게이션 */}
-      <nav className="border-b border-gray-200 bg-white sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-[#A31F34] cursor-pointer" onClick={() => router.push("/")}>
-            4exam.study
-          </h1>
-          <div className="flex items-center gap-4 text-sm">
-            <a href="/schools" className="text-gray-600 hover:text-[#A31F34]">전체 학교</a>
-            <a href="/admin" className="text-gray-400 hover:text-[#A31F34]">관리자</a>
-          </div>
-        </div>
-      </nav>
+      <NavBar />
 
       {/* 히어로 */}
       <section className="bg-gradient-to-b from-[#A31F34]/5 to-white">

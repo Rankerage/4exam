@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { NavBar, SchoolTabs } from "@/components/NavBar";
 
 interface Material {
   id: string; title: string; type: string; description?: string;
@@ -50,6 +51,9 @@ export default function SchoolPage({ params }: { params: { id: string } }) {
 
   return (
     <main className="min-h-screen bg-white">
+      <NavBar />
+      <SchoolTabs schoolId={params.id} grade={grade} onGradeChange={setGrade} />
+
       {/* 학교 헤더 */}
       <header className="relative bg-gradient-to-r from-[#A31F34] to-[#C42A45] text-white overflow-hidden">
         <div className="absolute inset-0 opacity-5">
@@ -90,27 +94,6 @@ export default function SchoolPage({ params }: { params: { id: string } }) {
           </div>
         </div>
       </header>
-
-      {/* 학년 선택 */}
-      <div className="border-b border-gray-100 bg-white sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 flex gap-1 py-2 overflow-x-auto">
-          {[
-            { g: 0, label: "전체" },
-            { g: 1, label: "1학년" },
-            { g: 2, label: "2학년" },
-            { g: 3, label: "3학년" },
-          ].map(({ g, label }) => (
-            <button key={g} onClick={() => setGrade(g)}
-              className={`px-4 py-1.5 text-sm rounded-lg transition-all whitespace-nowrap ${
-                grade === g 
-                  ? "bg-[#A31F34] text-white font-medium" 
-                  : "text-gray-500 hover:bg-gray-100"
-              }`}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* 본문: 그리드 */}
       <div className="max-w-6xl mx-auto px-6 py-8">
