@@ -67,6 +67,12 @@ export default function Home() {
             ))}
           </div>
         </div>
+
+        <div className="mt-8 text-center">
+          <a href="/login" className="text-xs text-gray-400 hover:text-[#A31F34] transition-colors underline underline-offset-4">
+            로그인
+          </a>
+        </div>
       </div>
     </main>
   );
