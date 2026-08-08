@@ -2,291 +2,206 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { LunchMenu, SchoolEvent, fetchLunchMenu, fetchSchoolSchedule } from "@/lib/neis-api";
 
 interface Material {
   id: string; title: string; type: string; description?: string;
   year?: number; semester?: string; subject?: string; created_at: string;
 }
-
-// 개인화 템플릿 엔진
-const PERSONALIZE = {
-  schoolName: "",
-  schoolRegion: "",
-  schoolType: "",
-  grade: 1,
-  textbook: "",
-  greeting: "",
-};
-
-function personalizeText(text: string, ctx: typeof PERSONALIZE): string {
-  return text
-    .replace(/\{학교명\}/g, ctx.schoolName)
-    .replace(/\{지역\}/g, ctx.schoolRegion)
-    .replace(/\{학교유형\}/g, ctx.schoolType)
-    .replace(/\{학년\}/g, `${ctx.grade}학년`)
-    .replace(/\{교과서\}/g, ctx.textbook)
-    .replace(/\{인사말\}/g, ctx.greeting);
-}
-
-function getGreeting(ctx: typeof PERSONALIZE): string {
-  const h = new Date().getHours();
-  const time = h < 12 ? "밝은 아침" : h < 17 ? "활기찬 오후" : "차분한 저녁";
-  return `${ctx.schoolName} ${ctx.grade}학년 학생 여러분, ${time}입니다!`;
+interface Identity {
+  tree: string; flower: string; motto: string; founded: number;
+  student_count: number; theme_color: string;
 }
 
 export default function SchoolPage({ params }: { params: { id: string } }) {
   const [school, setSchool] = useState<any>(null);
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [lunch, setLunch] = useState<LunchMenu[]>([]);
-  const [events, setEvents] = useState<SchoolEvent[]>([]);
-  const [tab, setTab] = useState("all");
-  const [grade, setGrade] = useState(1);
-  const [viewMode, setViewMode] = useState<"card" | "list">("card");
+  const [identity, setIdentity] = useState<Identity | null>(null);
+  const [grade, setGrade] = useState(0);
+  const [msg, setMsg] = useState("");
 
   useEffect(() => {
     fetch(`/api/exam?action=school&id=${params.id}`).then(r => r.json()).then(setSchool);
-    fetch(`/api/exam?action=materials&schoolId=${params.id}`).then(r => r.json()).then(setMaterials);
-    const today = new Date().toISOString().slice(0, 10);
-    const nextMonth = new Date(Date.now() + 30*86400000).toISOString().slice(0, 10);
-    fetchLunchMenu("B10", params.id, today).then(setLunch);
-    fetchSchoolSchedule("B10", params.id, today, nextMonth).then(setEvents);
+    fetch(`/api/materials?schoolId=${params.id}`).then(r => r.json()).then(d => {
+      // 공통자료도 함께 가져오기
+      fetch("/api/materials?schoolId=ALL").then(r2 => r2.json()).then(common => {
+        setMaterials([...d, ...common].slice(0, 30));
+      });
+    });
+    // 학교 아이덴티티는 school 데이터에 포함
   }, [params.id]);
 
-  if (!school) return <div className="min-h-screen flex items-center justify-center"><p className="text-gray-400">로딩 중...</p></div>;
+  // 인사말 생성
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "밝은 아침입니다" : hour < 17 ? "활기찬 오후입니다" : "고요한 저녁입니다";
+  
+  // 학교명 첫글자
+  const initial = school?.name?.charAt(0) || "學";
 
-  // 개인화 컨텍스트
-  const ctx: typeof PERSONALIZE = {
-    schoolName: school.name || "우리 학교",
-    schoolRegion: school.region || "",
-    schoolType: school.type || "",
-    grade,
-    textbook: school.textbook_publisher || "",
-    greeting: "",
-  };
-  ctx.greeting = getGreeting(ctx);
+  // 교과서 기반 개인화 문구
+  const textbook = school?.textbook_publisher || "맞춤 교과서";
 
-  const filtered = tab === "all" ? materials : materials.filter(m => m.type === tab);
-  const types = ["all","기출문제","예상문제","수행평가","요점정리","급식/일정"];
-  const examEvents = events.filter(e => e.type === "시험");
-
-  // 개인화된 제목 생성
-  const personalizedTitle = (m: Material) => {
-    const titles: Record<string, string> = {
-      "기출문제": `📝 ${ctx.schoolName} ${ctx.grade}학년 ${m.subject || ""} ${m.type}`,
-      "예상문제": `🎯 ${ctx.schoolName} 맞춤 ${m.subject || ""} ${m.type}`,
-      "수행평가": `✍️ ${ctx.schoolName} ${m.subject || ""} ${m.type} 자료`,
-      "요점정리": `📖 ${ctx.schoolName} ${ctx.grade}학년 ${m.subject || ""} 핵심정리`,
-    };
-    return titles[m.type] || m.title;
-  };
+  if (!school) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-400 text-lg font-light">학교를 불러오는 중...</p>
+      </main>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-white text-gray-900">
-      {/* ===== 개인화 헤더 ===== */}
-      <header className="bg-gradient-to-r from-[#1a237e] via-[#283593] to-[#3949ab] text-white">
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between mb-2">
-            <Link href="/" className="text-white/60 text-sm hover:text-white transition-colors">← 학교 변경</Link>
-            <div className="flex items-center gap-2">
-              {/* 학년 선택 */}
-              {[1,2,3].map(g => (
-                <button key={g} onClick={() => setGrade(g)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    grade === g ? "bg-white text-[#1a237e]" : "bg-white/20 text-white hover:bg-white/30"
-                  }`}>
-                  {g}학년
-                </button>
-              ))}
+    <main className="min-h-screen bg-white">
+      {/* 학교 헤더 */}
+      <header className="relative bg-gradient-to-r from-[#A31F34] to-[#C42A45] text-white overflow-hidden">
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-white" />
+          <div className="absolute -bottom-10 -left-10 w-64 h-64 rounded-full bg-white" />
+        </div>
+        <div className="max-w-6xl mx-auto px-6 py-12 md:py-16 relative z-10">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs tracking-[.3em] uppercase opacity-60 mb-3">{school.type}</p>
+              <h1 className="text-3xl md:text-5xl font-extralight tracking-tight mb-2">{school.name}</h1>
+              <p className="text-white/70 text-md font-light mt-3">{greeting}, 오늘도 좋은 하루!</p>
+            </div>
+            <div className="hidden md:flex items-center gap-1">
+              <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
+                <span className="text-3xl font-bold opacity-80">{initial}</span>
+              </div>
             </div>
           </div>
-          
-          {/* 인사말 */}
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-1">
-            {personalizeText("{인사말}", ctx)}
-          </h1>
-          <p className="text-white/70 text-sm">
-            {personalizeText("{학교명}만을 위한 맞춤 시험자료 · {교과서} 교과서 기준", ctx)}
-          </p>
+
+          {/* 학교 메타 */}
+          <div className="flex flex-wrap gap-3 mt-8">
+            <span className="px-3 py-1.5 bg-white/10 rounded-full text-xs">
+              📚 {textbook}
+            </span>
+            <span className="px-3 py-1.5 bg-white/10 rounded-full text-xs">
+              📍 {school.region}
+            </span>
+            {grade > 0 && (
+              <span className="px-3 py-1.5 bg-white/10 rounded-full text-xs">
+                🎒 {grade}학년
+              </span>
+            )}
+            <a href={`/login?change=1`} 
+               className="px-3 py-1.5 bg-white/20 rounded-full text-xs hover:bg-white/30 transition-colors">
+              🔄 학교 변경
+            </a>
+          </div>
         </div>
       </header>
 
-      {/* ===== 학교 정보 배너 ===== */}
-      <section className="bg-gray-50 border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          <div className="flex flex-wrap items-center gap-4 md:gap-8">
-            <InfoBadge label="교과서" value={school.textbook_publisher || "정보 없음"} />
-            <InfoBadge label="지역" value={school.region} />
-            <InfoBadge label="학교유형" value={school.type} />
-            <InfoBadge label="선택학년" value={`${grade}학년`} highlight />
-            
-            {/* 급식 미리보기 */}
-            {lunch.length > 0 && (
-              <div className="flex-1" />
-            )}
-            {lunch.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm p-4 max-w-xs">
-                <p className="text-xs text-[#A31F34] font-bold mb-2">
-                  🍱 {personalizeText("{학교명} 오늘의 급식", ctx)}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {lunch[0].menu.map((m, i) => (
-                    <span key={i} className="text-sm text-gray-700 bg-gray-50 px-2 py-0.5 rounded-lg">{m}</span>
-                  ))}
-                </div>
-              </div>
-            )}
+      {/* 학년 선택 */}
+      <div className="border-b border-gray-100 bg-white sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-6 flex gap-1 py-2 overflow-x-auto">
+          {[
+            { g: 0, label: "전체" },
+            { g: 1, label: "1학년" },
+            { g: 2, label: "2학년" },
+            { g: 3, label: "3학년" },
+          ].map(({ g, label }) => (
+            <button key={g} onClick={() => setGrade(g)}
+              className={`px-4 py-1.5 text-sm rounded-lg transition-all whitespace-nowrap ${
+                grade === g 
+                  ? "bg-[#A31F34] text-white font-medium" 
+                  : "text-gray-500 hover:bg-gray-100"
+              }`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 본문: 그리드 */}
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* 자료 그리드 */}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold tracking-tight">
+              📝 {grade > 0 ? `${grade}학년 ` : ""}시험자료
+              <span className="text-sm font-normal text-gray-400 ml-2">수능기출 · 모의고사 · 학교시험</span>
+            </h2>
+            <select 
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "ALL") {
+                  fetch("/api/materials?schoolId=ALL").then(r => r.json()).then(d => {
+                    fetch(`/api/materials?schoolId=${params.id}`).then(r2 => r2.json()).then(specific => {
+                      setMaterials([...specific, ...d].slice(0, 30));
+                    });
+                  });
+                } else {
+                  fetch(`/api/materials?schoolId=${params.id}&type=${v}`).then(r => r.json()).then(setMaterials);
+                }
+              }}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50">
+              <option value="ALL">전체 자료</option>
+              <option value="기출문제">기출문제</option>
+              <option value="예상문제">예상문제</option>
+              <option value="수행평가">수행평가</option>
+            </select>
           </div>
-          
-          {/* 시험 일정 */}
-          {examEvents.length > 0 && (
-            <div className="mt-4 flex gap-2 overflow-x-auto">
-              {examEvents.slice(0, 3).map((e, i) => (
-                <div key={i} className="shrink-0 px-3 py-1.5 bg-red-50 border border-red-100 rounded-full text-xs text-red-700 font-medium">
-                  📅 {e.name} — {e.date}
+
+          {materials.length === 0 ? (
+            <div className="text-center py-16 text-gray-300">
+              <p className="text-5xl mb-4">📭</p>
+              <p className="text-lg font-light">아직 등록된 자료가 없습니다</p>
+              <p className="text-sm mt-2">첫 번째 자료를 기다리고 있어요</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {materials.map((m) => (
+                <div key={m.id} 
+                  className="group bg-white border border-gray-100 rounded-2xl p-5 hover:shadow-lg hover:border-gray-200 transition-all cursor-pointer">
+                  <div className="flex items-start justify-between mb-3">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      m.type?.includes("기출") ? "bg-red-50 text-red-600" :
+                      m.type?.includes("예상") ? "bg-blue-50 text-blue-600" :
+                      m.type?.includes("모의") ? "bg-purple-50 text-purple-600" :
+                      "bg-gray-100 text-gray-600"
+                    }`}>
+                      {m.type?.replace("(공통)", "")}
+                    </span>
+                    {m.year && (
+                      <span className="text-xs text-gray-300">{m.year}학년도</span>
+                    )}
+                  </div>
+                  
+                  <h3 className="font-medium text-gray-800 group-hover:text-[#A31F34] transition-colors mb-1 line-clamp-2">
+                    {m.title}
+                  </h3>
+                  
+                  {m.description && (
+                    <p className="text-sm text-gray-400 line-clamp-2">{m.description}</p>
+                  )}
+                  
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50">
+                    <span className="text-xs text-gray-400">
+                      {m.type?.includes("공통") ? "🌐 전국 공통" : `🏫 ${school.name}`}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      </section>
+        </section>
 
-      {/* ===== 탭 + 자료 ===== */}
-      <section className="max-w-6xl mx-auto px-6 pt-8">
-        <div className="flex items-center justify-between mb-6 border-b border-gray-200 pb-3">
-          <div className="flex gap-1">
-            {types.map(t => (
-              <button key={t} onClick={() => setTab(t)}
-                className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-                  tab===t ? "bg-[#A31F34] text-white" : "text-gray-500 hover:bg-gray-100"
-                }`}>
-                {t==="all" ? "전체" : t==="급식/일정" ? "🍱 급식" : t}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-3">
-            {/* 정렬 */}
-            <ViewToggle view={viewMode} onChange={setViewMode} />
-          </div>
-        </div>
-
-        {tab === "급식/일정" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gray-50 rounded-2xl p-6">
-              <h3 className="text-lg font-bold mb-4">
-                📅 {personalizeText("{학교명} 학사일정", ctx)}
-              </h3>
-              {events.map((e, i) => (
-                <div key={i} className="flex gap-3 py-2 border-b border-gray-200 last:border-0">
-                  <span className="text-sm text-gray-400 w-24">{e.date}</span>
-                  <span className={`text-sm px-2 py-0.5 rounded-full ${
-                    e.type==="시험"?"bg-red-100 text-red-700":"bg-blue-100 text-blue-700"
-                  }`}>{e.type}</span>
-                  <span className="text-sm">{e.name}</span>
-                </div>
-              ))}
-            </div>
-            <div className="bg-gray-50 rounded-2xl p-6">
-              <h3 className="text-lg font-bold mb-4">
-                🍱 {personalizeText("{학교명} 이번 주 급식", ctx)}
-              </h3>
-              {lunch.map((l, i) => (
-                <div key={i} className="mb-4 last:mb-0">
-                  <p className="text-sm font-medium text-gray-500 mb-1">{l.date}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {l.menu.map((m, j) => (
-                      <span key={j} className="text-sm bg-white px-2 py-1 rounded-lg shadow-sm">{m}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
+        {/* 하단: 급식 + 일정 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12 pt-8 border-t border-gray-100">
+          <div>
+            <h3 className="font-bold text-lg mb-4">🍱 오늘의 급식</h3>
+            <div className="bg-gray-50 rounded-2xl p-6 text-center">
+              <p className="text-gray-400 text-sm">급식 정보를 불러오는 중...</p>
             </div>
           </div>
-        ) : (
-          <>
-            {/* 개인화 카드 그리드 */}
-            <div className={viewMode === "card"
-              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-              : "space-y-2"
-            }>
-              {filtered.map(m => (
-                viewMode === "card" ? (
-                  <div key={m.id} className="group bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-lg hover:border-gray-200 transition-all cursor-pointer">
-                    <div className="aspect-[16/10] bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-                      <span className="text-5xl opacity-20">
-                        {m.type==="기출문제"?"📝":m.type==="예상문제"?"🎯":m.type==="수행평가"?"✍️":"📖"}
-                      </span>
-                    </div>
-                    <div className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs px-2 py-0.5 bg-[#A31F34]/10 text-[#A31F34] rounded-full font-medium">{m.type}</span>
-                        {m.year && <span className="text-xs text-gray-400">{m.year}년</span>}
-                        {m.subject && <span className="text-xs text-gray-400">{m.subject}</span>}
-                      </div>
-                      {/* ★ 개인화된 제목 */}
-                      <h3 className="font-semibold text-base group-hover:text-[#A31F34] transition-colors">
-                        {personalizeText(personalizedTitle(m), ctx)}
-                      </h3>
-                      {m.description && (
-                        <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                          {personalizeText(m.description, ctx)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div key={m.id} className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
-                    <span className="text-2xl">{m.type==="기출문제"?"📝":"🎯"}</span>
-                    <div className="flex-1">
-                      <h3 className="font-medium">{personalizeText(personalizedTitle(m), ctx)}</h3>
-                      <p className="text-sm text-gray-500">{m.type} {m.year && `· ${m.year}년`}</p>
-                    </div>
-                    <span className="text-xs text-gray-400">{m.created_at?.slice(0,10)}</span>
-                  </div>
-                )
-              ))}
+          <div>
+            <h3 className="font-bold text-lg mb-4">📅 학사일정</h3>
+            <div className="bg-gray-50 rounded-2xl p-6 text-center">
+              <p className="text-gray-400 text-sm">일정 정보를 불러오는 중...</p>
             </div>
-            {filtered.length === 0 && (
-              <div className="text-center py-16">
-                <p className="text-4xl mb-3">📭</p>
-                <p className="text-gray-400 text-lg">
-                  {personalizeText("{학교명}의 첫 번째 자료를 기다리고 있어요!", ctx)}
-                </p>
-                <p className="text-gray-300 text-sm mt-1">곧 업데이트 됩니다</p>
-              </div>
-            )}
-          </>
-        )}
-      </section>
-
-      <footer className="border-t border-gray-200 mt-16">
-        <div className="max-w-6xl mx-auto px-6 py-6 flex justify-between text-xs text-gray-400">
-          <span>4exam.study — {school.name}</span>
-          <span>{personalizeText("{학교명} {학년}학년 맞춤 시험자료", ctx)}</span>
+          </div>
         </div>
-      </footer>
+      </div>
     </main>
-  );
-}
-
-function InfoBadge({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className={`${highlight ? "bg-[#A31F34]/5 border-[#A31F34]/20" : "bg-white"} px-4 py-3 rounded-xl border`}>
-      <p className="text-xs text-gray-400 uppercase tracking-wider">{label}</p>
-      <p className={`font-bold ${highlight ? "text-[#A31F34]" : "text-gray-900"}`}>{value}</p>
-    </div>
-  );
-}
-
-function ViewToggle({ view, onChange }: { view: string; onChange: (v: "card"|"list") => void }) {
-  return (
-    <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-      <button onClick={() => onChange("card")} className={`p-1.5 rounded-md ${view==="card"?"bg-white shadow-sm":""}`}>
-        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M1 1h6v6H1V1zm8 0h6v6H9V1zM1 9h6v6H1V9zm8 0h6v6H9V9z"/></svg>
-      </button>
-      <button onClick={() => onChange("list")} className={`p-1.5 rounded-md ${view==="list"?"bg-white shadow-sm":""}`}>
-        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M2 3h12v2H2V3zm0 4h12v2H2V7zm0 4h12v2H2v-2z"/></svg>
-      </button>
-    </div>
   );
 }

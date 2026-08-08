@@ -96,10 +96,15 @@ export function getSchool(id: string) {
 
 export function getMaterials(schoolId: string, type?: string) {
   const d = getDb();
+  // 모든 학교 공통자료 + 학교 전용 자료
   if (type) {
-    return d.prepare("SELECT * FROM exam_materials WHERE school_id = ? AND type = ? ORDER BY created_at DESC").all(schoolId, type);
+    return d.prepare(
+      "SELECT * FROM exam_materials WHERE (school_id = ? OR school_id = 'ALL') AND type = ? ORDER BY created_at DESC LIMIT 20"
+    ).all(schoolId, type);
   }
-  return d.prepare("SELECT * FROM exam_materials WHERE school_id = ? ORDER BY created_at DESC LIMIT 20").all(schoolId);
+  return d.prepare(
+    "SELECT * FROM exam_materials WHERE school_id = ? OR school_id = 'ALL' ORDER BY created_at DESC LIMIT 30"
+  ).all(schoolId);
 }
 
 export function addMaterial(data: { schoolId: string; subjectId?: string; title: string; type: string; description?: string; fileUrl?: string; year?: number; semester?: string }) {
