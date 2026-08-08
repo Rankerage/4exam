@@ -6,10 +6,10 @@ import HomeClient from "./HomeClient";
 
 export default async function Home() {
   const heads = await headers();
-  const host = heads.get("host") || "";
+  const host = (heads.get("host") || "").toLowerCase();
   
   // 서브도메인 접근 → 학교 페이지로 리디렉트
-  if (host && host.includes("4exam.study") && host !== "4exam.study" && !host.startsWith("www.")) {
+  if (host.includes("4exam.study") && host !== "4exam.study" && !host.startsWith("www.")) {
     const parts = host.replace(".4exam.study", "").split(".");
     const schoolCode = parts[0].toLowerCase();
     
