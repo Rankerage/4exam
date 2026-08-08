@@ -1,20 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AdBanner } from "@/components/AdPlaceholder";
 
+const ALL_REGIONS = [
+  "전체", "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
+  "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"
+];
+
+const ALL_TYPES = ["전체", "초등학교", "중학교", "고등학교"];
+
 export default function HomeClient() {
   const [query, setQuery] = useState("");
+  const [region, setRegion] = useState("전체");
+  const [schoolType, setSchoolType] = useState("전체");
   const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleSearch = async (q: string) => {
+  const handleSearch = async (q: string, r: string, t: string) => {
     setQuery(q);
-    if (q.length >= 1) {
-      const res = await fetch(`/api/exam?action=search&q=${encodeURIComponent(q)}`);
-      setResults(await res.json());
-    } else setResults([]);
+    setRegion(r);
+    setSchoolType(t);
+    
+    if (q.length >= 1 || r !== "전체") {
+      setLoading(true);
+      const params = new URLSearchParams();
+      params.set("action", "search");
+      if (q) params.set("q", q);
+      if (r !== "전체") params.set("region", r);
+      if (t !== "전체") params.set("type", t);
+      
+      const res = await fetch(`/api/exam?${params.toString()}`);
+      const data = await res.json();
+      // 지역/유형 필터링은 API에서 지원하지 않으므로 클라이언트에서
+      let filtered = data;
+      if (r !== "전체") filtered = filtered.filter((s: any) => s.region === r);
+      if (t !== "전체") filtered = filtered.filter((s: any) => s.type === t);
+      setResults(filtered);
+      setLoading(false);
+    } else {
+      setResults([]);
+    }
   };
 
   return (
@@ -22,49 +50,98 @@ export default function HomeClient() {
       {/* 네비게이션 */}
       <nav className="border-b border-gray-200 bg-white sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-[#A31F34]">4exam.study</h1>
+          <h1 className="text-xl font-bold text-[#A31F34] cursor-pointer" onClick={() => router.push("/")}>
+            4exam.study
+          </h1>
           <div className="flex items-center gap-4 text-sm">
-            <a href="/schools" className="text-gray-600 hover:text-[#A31F34]">학교 찾기</a>
-            <a href="/schools" className="px-4 py-2 bg-[#A31F34] text-white rounded-lg hover:bg-[#8B1A2C]">학교 찾기</a>
+            <a href="/schools" className="text-gray-600 hover:text-[#A31F34]">전체 학교</a>
+            <a href="/admin" className="text-gray-400 hover:text-[#A31F34]">관리자</a>
           </div>
         </div>
       </nav>
 
       {/* 히어로 */}
       <section className="bg-gradient-to-b from-[#A31F34]/5 to-white">
-        <div className="max-w-6xl mx-auto px-6 py-20 text-center">
+        <div className="max-w-6xl mx-auto px-6 py-16 md:py-24 text-center">
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
             우리 학교<br /><span className="text-[#A31F34]">바로 가기</span>
           </h2>
-          <p className="text-gray-500 text-lg mb-8">전국 11,000개 학교의 시험자료·급식·일정을 한 곳에</p>
+          <p className="text-gray-500 text-lg mb-8">
+            전국 11,000개 학교의 시험자료·급식·일정을 한 곳에
+          </p>
           
-          {/* 학교 검색 */}
-          <div className="max-w-xl mx-auto">
-            <div className="relative">
+          {/* 학교 검색 + 필터 */}
+          <div className="max-w-2xl mx-auto">
+            <div className="relative mb-3">
               <input
                 type="text" value={query}
-                onChange={(e) => handleSearch(e.target.value)}
-                placeholder="학교 이름을 입력하세요 (예: 가락중학교)"
+                onChange={(e) => handleSearch(e.target.value, region, schoolType)}
+                placeholder="학교 이름을 입력하세요 (예: 대산고등학교)"
                 className="w-full text-lg py-4 px-6 border-2 border-gray-200 rounded-2xl focus:border-[#A31F34] outline-none bg-white shadow-sm"
               />
             </div>
-            {results.length > 0 && (
-              <div className="mt-2 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                {results.map((s) => (
-                  <button key={s.id}
-                    onClick={() => router.push(`/school/${s.id}`)}
-                    className="w-full text-left px-6 py-4 hover:bg-gray-50 border-b last:border-0">
-                    <span className="font-medium">{s.name}</span>
-                    <span className="text-sm text-gray-400 ml-2">{s.type} · {s.region}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            
+            {/* 필터 칩 */}
+            <div className="flex flex-wrap justify-center gap-1.5">
+              {ALL_REGIONS.map(r => (
+                <button key={r}
+                  onClick={() => handleSearch(query, r === region ? "전체" : r, schoolType)}
+                  className={`px-2.5 py-1 rounded-full text-xs transition-colors ${
+                    region === r
+                      ? "bg-[#A31F34] text-white"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  }`}>
+                  {r}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-center gap-1.5 mt-1.5">
+              {ALL_TYPES.map(t => (
+                <button key={t}
+                  onClick={() => handleSearch(query, region, t === schoolType ? "전체" : t)}
+                  className={`px-2.5 py-1 rounded-full text-xs transition-colors ${
+                    schoolType === t
+                      ? "bg-[#A31F34] text-white"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  }`}>
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* 검색 결과 */}
+          {loading && (
+            <div className="mt-4 text-gray-400 text-sm">검색 중...</div>
+          )}
+          {!loading && results.length > 0 && (
+            <div className="mt-4 max-w-2xl mx-auto bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden text-left">
+              <p className="px-6 py-2 text-xs text-gray-400 bg-gray-50">
+                {query ? `"${query}"` : ""} {region !== "전체" ? `· ${region}` : ""} {schoolType !== "전체" ? `· ${schoolType}` : ""} — {results.length}개 학교
+              </p>
+              {results.map((s) => (
+                <button key={s.id}
+                  onClick={() => router.push(`/school/${s.id}`)}
+                  className="w-full px-6 py-4 hover:bg-gray-50 border-b last:border-0 flex items-center justify-between transition-colors">
+                  <div>
+                    <span className="font-medium text-gray-800 group-hover:text-[#A31F34]">{s.name}</span>
+                    <div className="flex gap-2 mt-0.5">
+                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 rounded text-gray-500">{s.type}</span>
+                      <span className="text-xs text-gray-400">{s.region}</span>
+                    </div>
+                  </div>
+                  <span className="text-gray-300 text-lg">→</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {!loading && query && results.length === 0 && (
+            <p className="mt-4 text-gray-400 text-sm">검색 결과가 없습니다</p>
+          )}
         </div>
       </section>
 
-      {/* 역할별 카드 */}
+      {/* 역할 카드 */}
       <section className="max-w-6xl mx-auto px-6 py-12">
         <h3 className="text-xl font-bold text-center mb-8">누구나, 어떤 역할로든</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -91,7 +168,7 @@ export default function HomeClient() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold">📰 교육 소식</h3>
-            <a href="#" className="text-sm text-[#A31F34]">더 보기 →</a>
+            <a href="#" className="text-sm text-[#A31F34] hover:underline">더 보기 →</a>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
@@ -130,7 +207,7 @@ export default function HomeClient() {
       {/* 푸터 */}
       <footer className="border-t border-gray-200 bg-gray-50">
         <div className="max-w-6xl mx-auto px-6 py-8 flex justify-between text-xs text-gray-400">
-          <span>© 2026 4exam.study — 전국 학교별 맞춤 시험자료</span>
+          <span>© 2026 4exam.study</span>
           <div className="flex gap-4">
             <a href="#" className="hover:text-[#A31F34]">이용약관</a>
             <a href="#" className="hover:text-[#A31F34]">개인정보</a>
