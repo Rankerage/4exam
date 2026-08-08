@@ -12,7 +12,6 @@ interface Material {
 export default function SchoolPage({ params }: { params: { id: string } }) {
   const [school, setSchool] = useState<any>(null);
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [grade, setGrade] = useState(0);
   const [filter, setFilter] = useState("전체");
 
   useEffect(() => {
@@ -38,11 +37,6 @@ export default function SchoolPage({ params }: { params: { id: string } }) {
   const subjects = ["전체","국어","영어","수학","과학","사회","한국사"];
 
   const filtered = materials.filter(m => {
-    if (grade > 0 && !m.title.includes(`${grade}학년`)) {
-      // 학년 필터는 제목에 "N학년" 포함 여부로 간단하게
-      // 실제로는 DB에 grade 필드 추가 필요
-      return m.title.includes("수능") || m.title.includes("모의"); // 공통자료는 항상 통과
-    }
     if (filter !== "전체" && !m.subject?.includes(filter) && !m.title.includes(filter)) {
       return false;
     }
@@ -71,16 +65,6 @@ export default function SchoolPage({ params }: { params: { id: string } }) {
       {/* 필터바 */}
       <div className="border-b border-gray-100 bg-white sticky top-14 z-30">
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-2 flex items-center gap-2 overflow-x-auto">
-          {/* 학년 */}
-          {[0,1,2,3].map(g => (
-            <button key={g} onClick={() => setGrade(g)}
-              className={`px-3 py-1 text-xs rounded-md whitespace-nowrap transition-colors ${
-                grade === g ? "bg-[#A31F34] text-white" : "text-gray-500 hover:bg-gray-100"
-              }`}>
-              {g === 0 ? "전체" : `${g}학년`}
-            </button>
-          ))}
-          <span className="text-gray-200 mx-1">|</span>
           {/* 과목 */}
           {subjects.map(s => (
             <button key={s} onClick={() => setFilter(s)}
