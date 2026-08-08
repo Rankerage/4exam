@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AdBanner } from "@/components/AdPlaceholder";
 
 export default function HomeClient() {
   const [query, setQuery] = useState("");
@@ -24,7 +25,7 @@ export default function HomeClient() {
           <h1 className="text-xl font-bold text-[#A31F34]">4exam.study</h1>
           <div className="flex items-center gap-4 text-sm">
             <a href="/schools" className="text-gray-600 hover:text-[#A31F34]">학교 찾기</a>
-            <a href="/login" className="px-4 py-2 bg-[#A31F34] text-white rounded-lg hover:bg-[#8B1A2C]">입장하기</a>
+            <a href="/schools" className="px-4 py-2 bg-[#A31F34] text-white rounded-lg hover:bg-[#8B1A2C]">학교 찾기</a>
           </div>
         </div>
       </nav>
@@ -81,6 +82,9 @@ export default function HomeClient() {
           ))}
         </div>
       </section>
+
+      {/* 광고 */}
+      <div className="max-w-6xl mx-auto px-6"><AdBanner /></div>
 
       {/* 교육 뉴스 */}
       <section className="bg-gray-50 py-12">
