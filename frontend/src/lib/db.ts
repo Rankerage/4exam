@@ -110,3 +110,38 @@ export function addMaterial(data: { schoolId: string; subjectId?: string; title:
   ).run(id, data.schoolId, data.subjectId || null, data.title, data.type, data.description || null, data.fileUrl || null, data.year || null, data.semester || null);
   return id;
 }
+
+// ── 사용자 인증 ──
+export interface User {
+  id: string;
+  school_id: string | null;
+  nickname: string | null;
+  role: string;
+  created_at: string;
+}
+
+export function createUser(schoolId: string, nickname: string, role: string = "student"): User {
+  const d = getDb();
+  const id = `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  d.prepare(
+    "INSERT INTO users (id, school_id, nickname, role) VALUES (?, ?, ?, ?)"
+  ).run(id, schoolId, nickname, role);
+  return getUser(id)!;
+}
+
+export function getUser(id: string): User | undefined {
+  const d = getDb();
+  return d.prepare("SELECT * FROM users WHERE id = ?").get(id) as User | undefined;
+}
+
+export function getUserBySchoolAndNickname(schoolId: string, nickname: string): User | undefined {
+  const d = getDb();
+  return d.prepare(
+    "SELECT * FROM users WHERE school_id = ? AND nickname = ? LIMIT 1"
+  ).get(schoolId, nickname) as User | undefined;
+}
+
+export function getAllSchools() {
+  const d = getDb();
+  return d.prepare("SELECT * FROM schools ORDER BY name").all();
+}
