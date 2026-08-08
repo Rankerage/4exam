@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getNickname } from "@/lib/nickname";
 
 export function MaterialFeedback({ materialId }: { materialId: string }) {
   const [likes, setLikes] = useState(0);
@@ -8,9 +9,9 @@ export function MaterialFeedback({ materialId }: { materialId: string }) {
   const [voted, setVoted] = useState("");
   const [comments, setComments] = useState<any[]>([]);
   const [commentText, setCommentText] = useState("");
-  const [nickname, setNickname] = useState("");
   const [showComments, setShowComments] = useState(false);
   const [loading, setLoading] = useState(false);
+  const nickname = getNickname() || "익명";
 
   useEffect(() => {
     fetch(`/api/comments?materialId=${materialId}`)
@@ -82,13 +83,7 @@ export function MaterialFeedback({ materialId }: { materialId: string }) {
         <div className="border-t border-gray-100 pt-2 space-y-2">
           {/* 댓글 입력 */}
           <div className="flex gap-2">
-            <input
-              type="text" value={nickname}
-              onChange={e => setNickname(e.target.value)}
-              placeholder="닉네임"
-              className="w-16 text-xs px-2 py-1 border border-gray-200 rounded-lg"
-              maxLength={8}
-            />
+            <span className="text-xs text-gray-400 self-center shrink-0">{nickname}</span>
             <input
               type="text" value={commentText}
               onChange={e => setCommentText(e.target.value)}
