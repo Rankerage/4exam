@@ -3,21 +3,32 @@
 import { useEffect, useState } from "react";
 import { NavBar } from "@/components/NavBar";
 import { MaterialFeedback } from "@/components/MaterialFeedback";
+import { AdBanner } from "@/components/AdPlaceholder";
 
 interface Material {
   id: string; title: string; type: string; description?: string;
   year?: number; semester?: string; subject?: string; created_at: string;
 }
 
+const BOARDS = [
+  { key: "전체", label: "전체" },
+  { key: "국어", label: "국어" },
+  { key: "영어", label: "영어" },
+  { key: "수학", label: "수학" },
+  { key: "과학", label: "과학" },
+  { key: "사회", label: "사회" },
+  { key: "기타", label: "기타" },
+];
+
 export default function SchoolPage({ params }: { params: { id: string } }) {
   const [school, setSchool] = useState<any>(null);
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [filter, setFilter] = useState("전체");
+  const [board, setBoard] = useState("전체");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     fetch(`/api/exam?action=school&id=${params.id}`).then(r => r.json()).then(s => {
       setSchool(s);
-      // 공통자료 + 학교자료 함께 로드
       fetch("/api/materials?schoolId=ALL").then(r => r.json()).then(common => {
         fetch(`/api/materials?schoolId=${params.id}`).then(r => r.json()).then(specific => {
           setMaterials([...specific, ...common]);
@@ -26,20 +37,16 @@ export default function SchoolPage({ params }: { params: { id: string } }) {
     });
   }, [params.id]);
 
-  if (!school) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-white">
-        <p className="text-gray-300 text-lg font-light">불러오는 중...</p>
-      </main>
-    );
-  }
-
-  const subjects = ["전체","국어","영어","수학","과학","사회","한국사"];
+  if (!school) return <main className="min-h-screen flex items-center justify-center"><p className="text-gray-300">불러오는 중...</p></main>;
 
   const filtered = materials.filter(m => {
-    if (filter !== "전체" && !m.subject?.includes(filter) && !m.title.includes(filter)) {
-      return false;
+    if (board === "기타") {
+      return !["국어","영어","수학","과학","사회"].some(s => 
+        m.subject?.includes(s) || m.title.includes(s)
+      );
     }
+    if (board !== "전체" && !m.subject?.includes(board) && !m.title.includes(board)) return false;
+    if (search && !m.title.includes(search) && !m.description?.includes(search)) return false;
     return true;
   });
 
@@ -47,87 +54,97 @@ export default function SchoolPage({ params }: { params: { id: string } }) {
     <main className="min-h-screen bg-white">
       <NavBar />
       
-      {/* 학교 헤더 (간소화) */}
-      <header className="bg-gradient-to-r from-[#A31F34] to-[#C42A45] text-white">
-        <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10">
-          <p className="text-xs tracking-[.2em] uppercase opacity-50">{school.type}</p>
-          <h1 className="text-2xl md:text-4xl font-extralight tracking-tight mt-1">{school.name}</h1>
-          <div className="flex flex-wrap gap-2 mt-4">
-            <span className="px-2.5 py-1 bg-white/10 rounded-full text-xs">{school.region}</span>
-            {school.textbook_publisher && (
-              <span className="px-2.5 py-1 bg-white/10 rounded-full text-xs">📚 {school.textbook_publisher}</span>
-            )}
-            <a href="/login?change=1" className="px-2.5 py-1 bg-white/20 rounded-full text-xs hover:bg-white/30">🔄 변경</a>
-          </div>
+      {/* 학교명 + 검색 */}
+      <div className="border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-4">
+          <h1 className="text-lg font-bold">{school.name}</h1>
+          <input
+            type="text" value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={`${school.name} 자료 검색...`}
+            className="w-full mt-2 text-sm py-2 px-3 bg-gray-50 border border-gray-200 rounded-lg focus:border-[#A31F34] outline-none"
+          />
         </div>
-      </header>
+      </div>
 
-      {/* 필터바 */}
-      <div className="border-b border-gray-100 bg-white sticky top-14 z-30">
-        <div className="max-w-6xl mx-auto px-4 md:px-6 py-2 flex items-center gap-2 overflow-x-auto">
-          {/* 과목 */}
-          {subjects.map(s => (
-            <button key={s} onClick={() => setFilter(s)}
-              className={`px-3 py-1 text-xs rounded-md whitespace-nowrap transition-colors ${
-                filter === s ? "bg-gray-800 text-white" : "text-gray-500 hover:bg-gray-100"
+      {/* 게시판 탭 */}
+      <div className="border-b border-gray-100 sticky top-14 bg-white z-30">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 flex gap-0 overflow-x-auto">
+          {BOARDS.map(b => (
+            <button key={b.key} onClick={() => setBoard(b.key)}
+              className={`px-4 py-2.5 text-sm whitespace-nowrap border-b-2 transition-colors ${
+                board === b.key
+                  ? "border-[#A31F34] text-[#A31F34] font-medium"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
               }`}>
-              {s}
+              {b.label}
             </button>
           ))}
-          <span className="text-xs text-gray-300 ml-auto whitespace-nowrap">
+          <span className="ml-auto text-xs text-gray-300 self-center pr-2 whitespace-nowrap">
             {filtered.length}건
           </span>
         </div>
       </div>
 
-      {/* 통합 피드 */}
+      {/* 게시판 본문 */}
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-6">
         {filtered.length === 0 ? (
           <div className="text-center py-20 text-gray-300">
-            <p className="text-5xl mb-4">📭</p>
-            <p className="text-lg font-light">자료가 없습니다</p>
+            <p className="text-lg">게시물이 없습니다</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((m) => (
-              <div key={m.id} 
-                className="group bg-white border border-gray-100 rounded-2xl p-5 hover:shadow-md hover:border-gray-200 transition-all">
-                {/* 태그 */}
-                <div className="flex items-start justify-between mb-3">
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                    m.type?.includes("기출") ? "bg-red-50 text-red-600" :
-                    m.type?.includes("예상") ? "bg-blue-50 text-blue-600" :
-                    m.type?.includes("모의") ? "bg-purple-50 text-purple-600" :
-                    "bg-gray-100 text-gray-600"
-                  }`}>
-                    {m.type?.replace("(공통)", "")?.replace("기출문제(공통)", "기출")}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {m.type?.includes("공통") && (
-                      <span className="text-[10px] text-gray-300">🌐</span>
-                    )}
-                    {m.year && (
-                      <span className="text-[10px] text-gray-300">{m.year}년</span>
-                    )}
+          <>
+            {/* 게시물 리스트 */}
+            <div className="space-y-1">
+              {filtered.map((m, i) => (
+                <div key={m.id}>
+                  <div className="flex items-center justify-between py-3 px-2 hover:bg-gray-50 rounded-lg group cursor-pointer">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                          m.type?.includes("기출") ? "bg-red-50 text-red-600" :
+                          m.type?.includes("예상") ? "bg-blue-50 text-blue-600" :
+                          "bg-gray-100 text-gray-500"
+                        }`}>
+                          {m.type?.replace("(공통)","")?.replace("기출문제(공통)","기출")}
+                        </span>
+                        <span className="text-sm text-gray-800 truncate group-hover:text-[#A31F34]">
+                          {m.title}
+                        </span>
+                      </div>
+                      {m.description && (
+                        <p className="text-xs text-gray-400 mt-0.5 truncate ml-1">{m.description}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0 ml-2">
+                      {m.type?.includes("공통") && <span className="text-[10px] text-gray-300">🌐</span>}
+                      <MaterialFeedback materialId={m.id} />
+                    </div>
                   </div>
-                </div>
-                
-                {/* 제목 */}
-                <h3 className="font-medium text-gray-800 group-hover:text-[#A31F34] transition-colors line-clamp-2 mb-1">
-                  {m.subject && <span className="text-xs text-gray-400 mr-1">[{m.subject}]</span>}
-                  {m.title}
-                </h3>
-                
-                {m.description && (
-                  <p className="text-xs text-gray-400 line-clamp-2">{m.description}</p>
-                )}
 
-                {/* 좋아요/댓글 */}
-                <MaterialFeedback materialId={m.id} />
-              </div>
-            ))}
-          </div>
+                  {/* 광고 (5개마다) */}
+                  {i > 0 && i % 5 === 0 && (
+                    <div className="py-4">
+                      <AdBanner />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* 하단 광고 */}
+            <div className="mt-8 pt-8 border-t border-gray-100">
+              <AdBanner />
+            </div>
+          </>
         )}
+      </div>
+
+      {/* 학교 변경 */}
+      <div className="text-center py-8 border-t border-gray-100">
+        <a href="/login?change=1" className="text-xs text-gray-400 hover:text-[#A31F34]">
+          다른 학교로 변경
+        </a>
       </div>
     </main>
   );
