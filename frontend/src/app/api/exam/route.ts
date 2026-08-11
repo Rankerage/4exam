@@ -1,5 +1,20 @@
 import { NextResponse } from "next/server";
 import { searchSchools, getSchool, getMaterials, addMaterial } from "@/lib/db";
+import Database from "better-sqlite3";
+import path from "path";
+
+function getEnglishAdoption(schoolId: string) {
+  try {
+    const db = new Database(path.join(process.cwd(), "data", "4exam.db"));
+    const row = db.prepare(
+      "SELECT publisher, source FROM english_adoptions WHERE school_id = ?"
+    ).get(schoolId);
+    db.close();
+    return row || null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -16,7 +31,9 @@ export async function GET(req: Request) {
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
     const school = getSchool(id);
     if (!school) return NextResponse.json({ error: "not found" }, { status: 404 });
-    return NextResponse.json(school);
+    // 영어 교과서 정보 추가
+    const eng = getEnglishAdoption(id);
+    return NextResponse.json({ ...school, english_publisher: eng?.publisher || null });
   }
 
   if (action === "materials") {

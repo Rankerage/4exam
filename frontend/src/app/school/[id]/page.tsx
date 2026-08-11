@@ -57,7 +57,14 @@ export default function SchoolPage({ params }: { params: { id: string } }) {
       {/* 학교명 + 검색 */}
       <div className="border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-4">
-          <h1 className="text-lg font-bold">{school.name}</h1>
+          <div className="flex items-center flex-wrap gap-2">
+            <h1 className="text-lg font-bold">{school.name}</h1>
+            {school.english_publisher && (
+              <span className="text-[11px] px-2 py-1 bg-blue-50 text-blue-700 rounded-full font-medium">
+                📗 영어: {school.english_publisher}
+              </span>
+            )}
+          </div>
           <input
             type="text" value={search}
             onChange={e => setSearch(e.target.value)}
